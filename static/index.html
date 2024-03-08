@@ -8,7 +8,7 @@
   <script src="https://d3js.org/topojson.v3.min.js"></script>
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v0.53.0/mapbox-gl.js"></script>
   <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v0.53.0/mapbox-gl.css" rel="stylesheet" />
-  <title>HW 3: Boston Yelp</title>
+  <title>HW3: Boston Food Finder</title>
   <style>
     html,
     body {
@@ -237,6 +237,7 @@
       // Get top 5 recommended restaurants
       var topRestaurants = uniqueRestaurants.sort((a, b) => b.score - a.score).slice(0, 5);
 
+      // Referenced this code for marker svg path: https://codepen.io/figle/pen/XXrRvj
       var markerPath = "M12 2C8.13 2 5 5.13 5 9c0 5 7 13 7 13s7-8 7-13c0-3.87-3.13-7-7-7z";
 
       function render() {
@@ -262,21 +263,21 @@
                 .html(`<strong>${restaurant.name}</strong> <span class="hover-rating"> ${restaurant.rating}</span>`);
             })
             .on("click", function (event, d) {
-              let starRatingHtml = generateStarRating(restaurant.rating);
+              let starRating = generateStarRating(restaurant.rating);
               let clickedRestaurantContent = `
                 <p><strong>${restaurant.name}</strong></p>
-                <p>${starRatingHtml}</p>
+                <p>${starRating}</p>
                 <a href="${restaurant.url}" target="_blank">Visit on Yelp</a>
                 <p><strong>Review preview:</strong> "<em>${restaurant.snippet_text}</em>"</p>
             `;
 
-              let clickedInfoDiv = d3.select("#clicked-restaurant-info");
-              if (clickedInfoDiv.empty()) {
+              let clickedInfo = d3.select("#clicked-restaurant-info");
+              if (clickedInfo.empty()) {
                 d3.select(".right-panel").append("div")
                   .attr("id", "clicked-restaurant-info")
                   .html(clickedRestaurantContent);
               } else {
-                clickedInfoDiv.html(clickedRestaurantContent);
+                clickedInfo.html(clickedRestaurantContent);
               }
             })
             .on("mouseout", () => d3.select("#popup").style("display", "none"));
@@ -325,11 +326,11 @@
                     map.on('moveend', render);
                   }
                   createFilters();
-                  updateMapDisplay();
+                  updateMap();
                 });
             });
           } else if (type === "category") {
-            let availableCategories = selectedNeighborhood ? getAvailableCategoriesForNeighborhood(selectedNeighborhood) : filterLists[type];
+            let availableCategories = selectedNeighborhood ? getCategories(selectedNeighborhood) : filterLists[type];
 
             filterLists[type].forEach(category => {
               let isAvailable = availableCategories.includes(category);
@@ -345,7 +346,7 @@
                       selectedCategories.add(category);
                     }
                     createFilters();
-                    updateMapDisplay();
+                    updateMap();
                   }
                 });
 
@@ -355,12 +356,12 @@
             });
           }
         });
-        const clearFiltersButton = d3.select("#clear-filters");
-        clearFiltersButton.on("click", function () {
+        const clearFilters = d3.select("#clear-filters");
+        clearFilters.on("click", function () {
           selectedCategories.clear();
           selectedNeighborhood = null;
           createFilters();
-          updateMapDisplay();
+          updateMap();
           map.flyTo({
             center: [-71.0589, 42.36],
             zoom: 12
@@ -369,7 +370,7 @@
 
       }
 
-      function getAvailableCategoriesForNeighborhood(neighborhoodName) {
+      function getCategories(neighborhoodName) {
         let categoriesInNeighborhood = new Set();
         uniqueRestaurants.filter(r => r.neighborhood === neighborhoodName).forEach(r => {
           r.broaderCategory.forEach(cat => categoriesInNeighborhood.add(cat));
@@ -392,7 +393,7 @@
           d3.selectAll(`div#neighborhood-buttons button`).classed("clicked", false);
           button.classed("clicked", selectedNeighborhood === button.text());
         }
-        updateMapDisplay();
+        updateMap();
       }
 
       function updateTopRestaurants() {
@@ -412,22 +413,22 @@
 
       var visibleRestaurants = [];
 
-      function updateMapDisplay() {
+      function updateMap() {
         if (!selectedNeighborhood && selectedCategories.size === 0) {
           visibleRestaurants = uniqueRestaurants;
         } else {
-          var neighborhoodFilteredRestaurants = uniqueRestaurants.filter(restaurant => {
+          var filteredRestaurants = uniqueRestaurants.filter(restaurant => {
             return !selectedNeighborhood || restaurant.neighborhood === selectedNeighborhood;
           });
 
-          var categoryAndNeighborhoodFilteredRestaurants = neighborhoodFilteredRestaurants.filter(restaurant => {
+          var allFilteredRestaurants = filteredRestaurants.filter(restaurant => {
             return selectedCategories.size === 0 || [...selectedCategories].some(cat => restaurant.broaderCategory.includes(cat));
           });
 
-          if (categoryAndNeighborhoodFilteredRestaurants.length === 0 && selectedNeighborhood) {
-            visibleRestaurants = neighborhoodFilteredRestaurants;
+          if (allFilteredRestaurants.length === 0 && selectedNeighborhood) {
+            visibleRestaurants = filteredRestaurants;
           } else {
-            visibleRestaurants = categoryAndNeighborhoodFilteredRestaurants;
+            visibleRestaurants = allFilteredRestaurants;
           }
         }
 
@@ -450,27 +451,27 @@
       }
 
       function generateStarRating(rating) {
-        let ratingHtml = '';
+        let ratingStars = '';
         const fullStars = Math.floor(rating);
         const halfStar = rating % 1 !== 0;
         const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
 
         // Full star
         for (let i = 0; i < fullStars; i++) {
-          ratingHtml += '<i class="fas fa-star"></i>';
+          ratingStars += '<i class="fas fa-star"></i>';
         }
 
         // Half star
         if (halfStar) {
-          ratingHtml += '<i class="fas fa-star-half-alt"></i>';
+          ratingStars += '<i class="fas fa-star-half-alt"></i>';
         }
 
         // Empty star
         for (let i = 0; i < emptyStars; i++) {
-          ratingHtml += '<i class="far fa-star"></i>';
+          ratingStars += '<i class="far fa-star"></i>';
         }
 
-        return ratingHtml;
+        return ratingStars;
       }
 
       map.on("viewreset", render);
@@ -481,7 +482,7 @@
       map.on("move", render);
       render();
 
-      updateMapDisplay();
+      updateMap();
       createFilters();
     });
 
